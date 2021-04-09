@@ -7,95 +7,6 @@ from scipy import stats
 
 
 
-#######################
-#######################
-## EARLY EXPLORE
-
-def value_counts(df, lst):
-    for col in lst:
-        print('\n___________\n')
-        print(col)
-        print('\n___________\n')
-        print(df[col].value_counts())
-
-
-
-
-
-
-
-
-def missing_zero_values_table(df):
-    '''
-    This function tales in a dataframe and counts number of Zero values and NULL values. Returns a Table with counts and percentages of each value type.
-    '''
-    zero_val = (df == 0.00).astype(int).sum(axis=0)
-    mis_val = df.isnull().sum()
-    mis_val_percent = 100 * df.isnull().sum() / len(df)
-    mz_table = pd.concat([zero_val, mis_val, mis_val_percent], axis=1)
-    mz_table = mz_table.rename(
-    columns = {0 : 'Zero Values', 1 : 'NULL Values', 2 : '% of Total NULL Values'})
-    mz_table['Total Zero\'s plus NULL Values'] = mz_table['Zero Values'] + mz_table['NULL Values']
-    mz_table['% Total Zero\'s plus NULL Values'] = 100 * mz_table['Total Zero\'s plus NULL Values'] / len(df)
-    mz_table['Data Type'] = df.dtypes
-    mz_table = mz_table[
-        mz_table.iloc[:,1] >= 0].sort_values(
-    '% of Total NULL Values', ascending=False).round(1)
-    print ("Your selected dataframe has " + str(df.shape[1]) + " columns and " + str(df.shape[0]) + " Rows.\n"      
-        "There are " + str((mz_table['NULL Values'] != 0).sum()) +
-          " columns that have NULL values.")
-    #       mz_table.to_excel('D:/sampledata/missing_and_zero_values.xlsx', freeze_panes=(1,0), index = False)
-    return mz_table
-
-
-def missing_columns(df):
-    '''
-    This function takes a dataframe, counts the number of null values in each row, and converts the information into another dataframe. Adds percent of total columns.
-    '''
-    missing_cols_df = pd.Series(data=df.isnull().sum(axis = 1).value_counts().sort_index(ascending=False))
-    missing_cols_df = pd.DataFrame(missing_cols_df)
-    missing_cols_df = missing_cols_df.reset_index()
-    missing_cols_df.columns = ['total_missing_cols','num_rows']
-    missing_cols_df['percent_cols_missing'] = round(100 * missing_cols_df.total_missing_cols / df.shape[1], 2)
-    missing_cols_df['percent_rows_affected'] = round(100 * missing_cols_df.num_rows / df.shape[0], 2)
-    
-    return missing_cols_df
-
-
-
-# Outlier Identification 
-
-
-def get_upper_outliers(s, k):
-    '''
-    Given a series and a cutoff value, k, returns the upper outliers for the
-    series.
-
-    The values returned will be either 0 (if the point is not an outlier), or a
-    number that indicates how far away from the upper bound the observation is.
-    '''
-    q1, q3 = s.quantile([.25, .75])
-    iqr = q3 - q1
-    upper_bound = q3 + k * iqr
-    return s.apply(lambda x: max([x - upper_bound, 0]))
-
-
-
-def add_upper_outlier_columns(df, k):
-    '''
-    Add a column with the suffix _outliers for all the numeric columns
-    in the given dataframe.
-    '''
-    # outlier_cols = {col + '_outliers': get_upper_outliers(df[col], k)
-    #                 for col in df.select_dtypes('number')}
-    # return df.assign(**outlier_cols)
-
-    for col in df.select_dtypes('number'):
-        df[col + '_outliers'] = get_upper_outliers(df[col], k)
-
-    return df
-
-
 
 # Visualiation Exploration
 
@@ -145,7 +56,7 @@ def explore_univariate_quant(train, quant):
     
 def freq_table(train, cat_var):
     '''
-    for a given categorical variable, compute the frequency count and percent split
+    for a given categoricaal variable, compute the frequency count and percent split
     and return a dataframe of those values along with the different classes. 
     '''
     class_labels = list(train[cat_var].unique())
@@ -156,6 +67,7 @@ def freq_table(train, cat_var):
                       'Percent': round(train[cat_var].value_counts(normalize=True)*100,2)}
                     )
     )
+    
     return frequency_table
 
 ###################### ________________________________________
@@ -278,7 +190,7 @@ def explore_multivariate(train, categorical_target, binary_vars, quant_vars):
     '''
     '''
 #     plot_swarm_grid_with_color(train, categorical_target, binary_vars, quant_vars)
-    violin = plot_violin_grid_with_color(train, categorical_target, binary_vars, quant_vars)
+#     violin = plot_violin_grid_with_color(train, categorical_target, binary_vars, quant_vars)
     plt.show()
     pair = sns.pairplot(data=train, vars=quant_vars, hue=categorical_target)
     plt.show()
@@ -332,6 +244,110 @@ def heat_map(df):
     return q
 
 
+###################### ________________________________________
+# Just STATS
+
+
+def t_test( population_1, population_2, alpha, sample=1, tail=2, tail_dir="higher"):
+    '''
+    This function takes in 2 populations, and an alpha confidence level and outputs the results of a t-test. 
+    Parameters:
+        population_1 and population_2: Can be 2 subgroups of the same population. population_2 must be the total population when running a 1 sample t-test
+        alpha: alpha = 1 - confidence level, 
+        sample: int 1 or 2, default = 1, functions performs 1 or 2 sample t-test.
+        tail: int 1 or 2, default = 2, Need to be used in conjuction with tail_dir. performs a 1 or 2 sample t-test. 
+        tail_dir: 'higher' or 'lower', defaul = higher.
+    '''
+    
+    if sample==1 and tail == 2:
+        
+        t, p = stats.ttest_1samp(population_1, population_2.mean())
+        
+        print(f't-stat = {round(t,4)}')
+        print(f'p     = {round(p,4)}\n')
+        
+        if p < alpha:
+            print(f'Becasue {round(p, 4)} is less than {alpha}, we reject the null hypothesis')
+        else:
+            print('There is insufficient evidence to reject the null hypothesis')
+                
+    elif sample==1 and tail == 1:
+        
+        t, p = stats.ttest_1samp(population_1, population_2.mean())
+        
+        print(f't-stat = {round(t,4)}')
+        print(f'p     = {round(p,4)}\n')
+        
+        if tail_dir == "higher":
+            if (p/2) < alpha and t > 0:
+                print(f'Becasue {round(p, 4)} is less than {alpha} and {round(t,4)} is greater than 0, we reject the null hypothesis')
+            else:
+                print('There is insufficient evidence to reject the null hypothesis')
+        
+        elif tail_dir == "lower":
+            if (p/2) < alpha and t < 0:
+                print(f'Becasue {round(p, 4)} is less than {alpha} and {round(t,4)} is less than 0, we reject the null hypothesis')
+            else:
+                print('There is insufficient evidence to reject the null hypothesis')
+        
+    elif sample==2 and tail == 2:
+        
+        t, p = stats.ttest_ind(population_1, population_2)
+
+        print(f't-stat = {round(t,4)}')
+        print(f'p     = {round(p,4)}\n')
+        
+        if p < alpha:
+            print(f'Becasue {round(p, 4)} is less than {alpha}, we reject the null hypothesis')
+        else:
+            print('There is insufficient evidence to reject the null hypothesis')
+        
+    elif sample == 2 and tail == 1:
+        
+        t, p = stats.ttest_ind(population_1, population_2)
+        
+        print(f't-stat = {round(t,4)}')
+        print(f'p     = {round(p,4)}\n')
+        
+        if tail_dir == "higher":
+            if (p/2) < alpha and t > 0:
+                print(f'Becasue {round(p, 4)} is less than {alpha} and {round(t,4)} is greater than 0, we reject the null hypothesis')
+            else:
+                print('There is insufficient evidence to reject the null hypothesis')
+        
+        elif tail_dir == "lower":
+            if (p/2) < alpha and t < 0:
+                print(f'Becasue {round(p, 4)} is less than {alpha} and {round(t,4)} is less than 0, we reject the null hypothesis')
+            else:
+                print('There is insufficient evidence to reject the null hypothesis')
+            
+    else:
+        print('sample must be 1 or 2, tail must be 1 or 2, tail_dir must be "higher" or "lower"')
+    
+    
+
+
+
+
+def chi2(df, var, target, alpha):
+    '''
+    This function takes in a df, variable, a target variable, and the alpha, and runs a chi squared test. Statistical analysis is printed in the output.
+    '''
+    observed = pd.crosstab(df[var], df[target])
+    chi2, p, degf, expected = stats.chi2_contingency(observed)
+
+    print('Observed\n')
+    print(observed.values)
+    print('---\nExpected\n')
+    print(expected)
+    print('---\n')
+    print(f'chi^2 = {chi2:.4f}')
+    print(f'p     = {p:.4f}\n')
+    if p < alpha:
+        print(f'Becasue {round(p, 4)} is less and {alpha}, we reject the null hypothesis')
+    else:
+        print('There is insufficient evidence to reject the null hypothesis')
+    
 
 def run_stats_on_everything(train, categorical_target, continuous_target, binary_vars, quant_vars):
     
