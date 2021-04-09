@@ -46,40 +46,42 @@ def wrangle_stroke():
     df.smoking_status = df.smoking_status.replace('Unknown', 'never smoked')
     
     # creating dummy variables for Residence_type
-    dummy_df = pd.get_dummies(df['Residence_type'], drop_first=False)
-    
     #rename dummy cols
+    dummy_df = pd.get_dummies(df['Residence_type'], drop_first=False)   
     dummy_df.columns = ['rural_residence', 'urban_residence']
+    df = pd.concat([df, dummy_df], axis= 1)
     
-    # creating dummy variables for Residence_type
-    dummy_df = pd.get_dummies(df['gender'], drop_first=False)
-    
+    # creating dummy variables for gender
     # #rename dummy cols
-    dummy_df.columns = ['is_female', 'is_male', 'other']
-    
     # # merge data frames togeter
+    # # drop "gender" column
+    # merge data frames together
+    # drop Residence_type, gender, and other columns
+    dummy_df = pd.get_dummies(df['gender'], drop_first=False)   
+    dummy_df.columns = ['is_female', 'is_male', 'other']
     df = pd.concat([df, dummy_df], axis= 1)
-    
-    # # drop "Residence_type" column
-    df.drop(columns=['gender','other'], inplace=True)
-    
-    # merge data frames togeter
-    df = pd.concat([df, dummy_df], axis= 1)
-    
-    # drop "Residence_type" column
-    df.drop(columns=['Residence_type'], inplace=True)
-    
+    df.drop(columns=['Residence_type', 'gender', 'other'], inplace=True)
+
     # establish features to impute using knn 
-    features = ['bmi','age','avg_glucose_level','heart_disease','hypertension']
-    
     # impute knn for bmi
-    w.impute_knn(df, features, 4)
+    features = ['bmi','age','avg_glucose_level','heart_disease','hypertension']
+    impute_knn(df, features, 4)
     
     # Create column of current smokers, converted boolean to binary
     df = df.assign(current_smoker = df.smoking_status == 'smokes')
     df.current_smoker = df.current_smoker.replace(True, 1).replace(False, 0).astype('int')
     
-
+    # Create age_bin
+    df['age_bin'] = pd.cut(df['age'], 
+                          bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+                          labels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+    
+    # Create gluc_bin
+    df['gluc_bin'] = pd.cut(df['avg_glucose_level'], 
+                          bins = [50, 100, 150, 200, 250, 300],
+                          labels = [50, 100, 150, 200, 250])
+    
+    
 
     
     return df
@@ -262,11 +264,11 @@ def train_validate_test_split(df, target, seed):
     '''
     train_validate, test = train_test_split(df, test_size=0.2, 
                                             random_state=seed, 
-                                            # stratify=df[target]
+                                            stratify=df[target]
                                            )
     train, validate = train_test_split(train_validate, test_size=0.3, 
                                        random_state=seed,
-                                       # stratify=train_validate[target]
+                                       stratify=train_validate[target]
                                       )
     return train, validate, test
 
